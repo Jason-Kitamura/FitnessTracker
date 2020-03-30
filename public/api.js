@@ -14,11 +14,14 @@ const API = {
     const id = location.search.split("=")[1];
     console.log( 'id:', id, 'data:', data );
 
-    const res = await fetch("/api/workouts/:" + id, {
-      method: "PUT",
+    const res = await fetch("/api/workouts/" + id, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: data
-    });
+      body: JSON.stringify( data )
+    }
+    
+    );
+    console.log('sent new excercise')
 
     const json = await res.json();
 
