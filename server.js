@@ -10,8 +10,7 @@ mongoose.set('useCreateIndex', true);
 // const orm = require( './orm' );
 
 const workout = require('./db/workout.js');
-const resistance = require( './db/resistance.js' );
-const cardio = require( './db/cardio.js' );
+const exercise = require('./db/exercises');
 
 
 const PORT = process.env.PORT || 8080;
@@ -27,8 +26,25 @@ app.get( '/exercise', function( req, res){
     res.sendFile(__dirname +'/public/exercise.html')
 })
 
+app.get( '/api/workouts', async function (req, res ){
+    const checkWorkouts = await workout.find();
+    console.log('check workout: ', checkWorkouts[0] );
+    if ( !checkWorkouts[0] ){
+        console.log( `empty!`);
+        res.send(checkWorkouts);
+    } else {
+        const id = checkWorkouts[0]._id
+        const populateWorkout = await workout.findById( {_id : `${id}`}).populate('exercises');
+        console.log('populate workouts', populateWorkout );
+        res.send( populateWorkout );
+    }
+
+})
+
 //createWorkout
-app.post( '/api/workouts', function( req, res ){
+app.post( '/api/workouts', async function( req, res ){
+    const removeWorkout = await workout.deleteMany({});
+    console.log('deleted workouts', removeWorkout );
 
     const dbWorkout = new workout (  );
     dbWorkout.save();
@@ -38,25 +54,31 @@ app.post( '/api/workouts', function( req, res ){
 })
 
 app.post( '/api/workouts/:id', async function ( req, res ){
+
+
     const id =  req.params.id ;
     console.log('id: ', id );
     console.log('create exercise body: ', req.body );
-    if ( req.body.type === 'resistance'){
-        const dbResistance = new resistance ( req.body );
-        dbResistance.save();
-        console.log( dbResistance );
-        const resistanceId = mongoose.Types.ObjectId( dbResistance._id );
-        const pushResistanceArray = await workout.findByIdAndUpdate({_id:`${id}`}, { $push: { resistance: resistanceId } });
-    } else if ( req.body.type === 'cardio' ){
-        const dbCardio = new cardio ( req.body );
-        dbCardio.save();
-        console.log( dbCardio );
-        const cardioId = mongoose.Types.ObjectId( dbCardio._id );
-        console.log('cardio id:', cardioId );
-        const pushCardioArray = await workout.findByIdAndUpdate({_id:`${id}`}, { $push: { cardio: cardioId } });
-    }
-    res.send( '')
-})
+
+    const dbExercise = new exercise ( req.body );
+    dbExercise.save();
+
+    const exerciseId = mongoose.Types.ObjectId( dbExercise._id );
+    const pushExercisesArray = await workout.findByIdAndUpdate({_id:`${id}`}, { $push: { exercises: exerciseId } });
+
+    const currentWorkout = await workout.findById( {_id:`${id}`} );
+    console.log('current workout: ', currentWorkout )
+    const workoutDuration = currentWorkout.totalDuration
+    const newDuration = Number(workoutDuration) + Number(req.body.duration);
+    const updateDuration = await workout.update( {_id:`${id}`}, {totalDuration : `${newDuration}` }  );
+    console.log( 'new duration: ', newDuration );
+
+    const workoutData = await workout.findById( {_id:`${id}`} ).populate('exercises');
+    console.log('workoutData:', workoutData );
+
+    res.send( workoutData );
+ })
+
 
 app.listen( PORT, function(){
     console.log( `RUNNING, http://localhost:${PORT}` ); });
